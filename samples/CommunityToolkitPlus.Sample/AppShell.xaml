@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="CommunityToolkitPlus.Sample.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:CommunityToolkitPlus.Sample"
+    Title="CommunityToolkitPlus">
+
+    <FlyoutItem Title="Home" FlyoutDisplayOptions="AsMultipleItems">
+        <ShellContent Title="Home" ContentTemplate="{DataTemplate local:MainPage}" Route="MainPage" />
+        <ShellContent Title="App Integrity" ContentTemplate="{DataTemplate local:IntegrityPage}" Route="Integrity" />
+        <ShellContent Title="Accessibility" ContentTemplate="{DataTemplate local:AccessibilityPage}" Route="Accessibility" />
+        <ShellContent Title="State" ContentTemplate="{DataTemplate local:StatePage}" Route="State" />
+        <ShellContent Title="Upgrade" ContentTemplate="{DataTemplate local:UpgradePage}" Route="Upgrade" />
+        <ShellContent Title="Trusted Time" ContentTemplate="{DataTemplate local:TrustedTimePage}" Route="TrustedTime" />
+        <ShellContent Title="Wallet" ContentTemplate="{DataTemplate local:WalletPage}" Route="Wallet" />
+        <ShellContent Title="Consent" ContentTemplate="{DataTemplate local:ConsentPage}" Route="Consent" />
+    </FlyoutItem>
+</Shell>

@@ -1,0 +1,12 @@
+global using System.Collections.Frozen;
+global using System.Collections.ObjectModel;
+global using System.Globalization;
+global using System.Text;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using CommunityToolkit.Maui;
+global using Microsoft.Maui.Hosting;

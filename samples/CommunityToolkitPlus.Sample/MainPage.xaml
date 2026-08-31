@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="CommunityToolkitPlus.Sample.MainPage">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="30" Spacing="16">
+            <toolkit:AvatarView
+                Text="CT+"
+                HeightRequest="96"
+                WidthRequest="96"
+                HorizontalOptions="Center"
+                SemanticProperties.Description="Community Toolkit Plus sample" />
+
+            <Label
+                Text="CommunityToolkitPlus"
+                Style="{StaticResource Headline}"
+                HorizontalTextAlignment="Center"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <Label
+                Text="Unofficial companion to CommunityToolkit.Maui. Open the flyout to exercise each module."
+                Style="{StaticResource SubHeadline}"
+                HorizontalTextAlignment="Center" />
+
+            <Border Padding="16">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Enabled Plus modules" FontAttributes="Bold" />
+                    <Label x:Name="EnabledFeaturesLabel" AutomationId="EnabledFeatures" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

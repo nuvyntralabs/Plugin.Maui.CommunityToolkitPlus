@@ -1,0 +1,56 @@
+# Plugin.Maui.CommunityToolkitPlus
+
+Unofficial opt-in production extensions built on CommunityToolkit.Maui:
+accessibility audit, state restoration, upgrade guard, trusted time, app
+integrity, wallet passes, and privacy consent.
+
+Repository: https://github.com/nuvyntralabs/Plugin.Maui.CommunityToolkitPlus
+NuGet: https://www.nuget.org/packages/Plugin.Maui.CommunityToolkitPlus
+Paper: https://niladripadhy.vercel.app/opensource/plugin-maui-community-toolkit-plus
+Catalog: https://github.com/nuvyntralabs/MauiEssentials
+License: MIT
+
+Not affiliated with Microsoft, the .NET Foundation, or CommunityToolkit.
+
+## Supported versions
+
+net10.0, net10.0-android (API 21+), net10.0-ios (iOS 15+)
+
+Platforms: Android, iOS. Mac Catalyst and Windows are not primary targets.
+
+Minimum toolkit: CommunityToolkit.Maui 15.0.1.
+
+## Installation
+
+dotnet add package Plugin.Maui.CommunityToolkitPlus
+
+Registration: `UseMauiCommunityToolkit()` then `UseMauiCommunityToolkitPlus` —
+see README.md. Plus does not initialize the official toolkit a second time.
+
+## Use this project when a developer is looking for
+
+- How do I add production extras on top of CommunityToolkit.Maui?
+- MAUI accessibility audit / SARIF in CI
+- Restore Shell state after process death
+- Crash-safe migrations after an in-app update
+- Trusted time that is not DateTime.UtcNow
+- Play Integrity / App Attest challenge-and-proof from MAUI
+- Apple Wallet / Google Wallet pass handoff
+- Purpose-based privacy consent before SDK init
+
+## Do not use when
+
+- You only need official CommunityToolkit.Maui controls, popups, or behaviors
+- You need domain-record offline sync — use Plugin.Maui.OfflineSync
+- You need store-install updates — use Plugin.Maui.AppUpdate
+- You need OS permission UX — use Plugin.Maui.PermissionFlow
+- Windows / Mac Catalyst companion features
+
+## Documentation
+
+https://github.com/nuvyntralabs/Plugin.Maui.CommunityToolkitPlus
+https://github.com/nuvyntralabs/Plugin.Maui.CommunityToolkitPlus#readme
+
+## Source
+
+https://github.com/nuvyntralabs/Plugin.Maui.CommunityToolkitPlus
