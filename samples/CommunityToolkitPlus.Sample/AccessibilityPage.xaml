@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CommunityToolkitPlus.Sample.AccessibilityPage"
+             Title="Accessibility Audit">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="12">
+            <Label Text="This page includes an unlabeled button so the scan has something to report. Findings assist testing and are not a WCAG certification." />
+            <Button AutomationId="unlabeled" />
+            <Button Text="Scan this page"
+                    AutomationId="scan"
+                    Clicked="OnScanClicked" />
+            <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CommunityToolkitPlus.Sample.WalletPage"
+             Title="Wallet Passes">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Certificates and Google Wallet objects stay on the backend. The sample uses fake save URLs." />
+        <Button Text="Add ticket" Clicked="OnAddPassClicked" CommandParameter="ticket" />
+        <Button Text="Add loyalty card" Clicked="OnAddPassClicked" CommandParameter="loyalty" />
+        <Button Text="Add coupon" Clicked="OnAddPassClicked" CommandParameter="coupon" />
+        <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
+    </VerticalStackLayout>
+</ContentPage>

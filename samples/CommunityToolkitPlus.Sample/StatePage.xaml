@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CommunityToolkitPlus.Sample.StatePage"
+             Title="State Restoration">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Transient workflow state. This is not OfflineSync." />
+        <Editor x:Name="DraftEditor"
+                AutoSize="TextChanges"
+                Placeholder="Unfinished draft" />
+        <Button Text="Checkpoint draft" Clicked="OnCheckpointClicked" />
+        <Button Text="Restore draft" Clicked="OnRestoreClicked" />
+        <Label x:Name="OutputLabel" />
+    </VerticalStackLayout>
+</ContentPage>
