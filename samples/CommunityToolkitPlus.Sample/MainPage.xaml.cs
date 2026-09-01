@@ -1,4 +1,5 @@
-﻿using Plus = Plugin.Maui.CommunityToolkitPlus.CommunityToolkitPlus;
+﻿using Plugin.Maui.CommunityToolkitPlus;
+using Plus = Plugin.Maui.CommunityToolkitPlus.CommunityToolkitPlus;
 
 namespace CommunityToolkitPlus.Sample;
 
@@ -8,8 +9,11 @@ public partial class MainPage : ContentPage
 	{
 		InitializeComponent();
 
-		EnabledFeaturesLabel.Text = string.Join(
-			Environment.NewLine,
-			Plus.Default.EnabledFeatures.OrderBy(feature => feature));
+		var plus = SampleServices.Get<ICommunityToolkitPlus>() ?? Plus.Default;
+		EnabledFeaturesLabel.Text =
+			string.Join(Environment.NewLine, plus.EnabledFeatures.OrderBy(feature => feature)) +
+			Environment.NewLine +
+			$"Startup: {DemoStartup.LastUpgradeDecision?.ToString() ?? "pending"}" +
+			(DemoStartup.RestoredRoute is null ? "" : $"{Environment.NewLine}Restored: {DemoStartup.RestoredRoute}");
 	}
 }

@@ -93,5 +93,108 @@ public sealed class ModuleRegistrationTests : IDisposable
         });
     }
 
+    [Fact]
+    public void Invalid_Challenge_Lifetime_Fails_Registration()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MauiApp.CreateBuilder()
+                .UseMauiApp<TestApplication>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitPlus(options =>
+                {
+                    options.AppIntegrity.Enabled = true;
+                    options.AppIntegrity.ChallengeLifetime = TimeSpan.Zero;
+                }));
+
+        Assert.Contains("ChallengeLifetime", exception.Message);
+    }
+
+    [Fact]
+    public void Invalid_State_Ttl_Fails_Registration()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            MauiApp.CreateBuilder()
+                .UseMauiApp<TestApplication>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitPlus(options =>
+                {
+                    options.StateRestoration.Enabled = true;
+                    options.StateRestoration.DefaultTimeToLive = TimeSpan.Zero;
+                }));
+    }
+
+    [Fact]
+    public void Missing_Upgrade_Version_Fails_Registration()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MauiApp.CreateBuilder()
+                .UseMauiApp<TestApplication>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitPlus(options =>
+                {
+                    options.UpgradeGuard.Enabled = true;
+                    options.UpgradeGuard.CurrentVersion = " ";
+                }));
+
+        Assert.Contains("CurrentVersion", exception.Message);
+    }
+
+    [Fact]
+    public void Invalid_Trusted_Time_Source_Fails_Registration()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MauiApp.CreateBuilder()
+                .UseMauiApp<TestApplication>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitPlus(options =>
+                {
+                    options.TrustedTime.Enabled = true;
+                    options.TrustedTime.Sources.Add(new Uri("ftp://clock.example"));
+                }));
+
+        Assert.Contains("HTTP", exception.Message);
+    }
+
+    [Fact]
+    public void Missing_Consent_Policy_Version_Fails_Registration()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            MauiApp.CreateBuilder()
+                .UseMauiApp<TestApplication>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitPlus(options =>
+                {
+                    options.PrivacyConsent.Enabled = true;
+                    options.PrivacyConsent.Policy = new ConsentPolicy("", []);
+                }));
+    }
+
+    [Fact]
+    public void Disabled_Modules_Write_No_Store_Files()
+    {
+        var directory = TestHarness.CreateTempDirectory();
+        using var provider = TestHarness
+            .CreatePlusBuilder(options => options.StorageDirectory = directory)
+            .Services
+            .BuildServiceProvider();
+
+        _ = provider.GetService<ICommunityToolkitPlus>();
+        _ = provider.GetService<IPlusStore>();
+
+        Assert.Empty(Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void AppIntegrity_Enables_Shared_Store()
+    {
+        using var provider = TestHarness
+            .CreatePlusBuilder(options => options.AppIntegrity.Enabled = true)
+            .Services
+            .BuildServiceProvider();
+
+        Assert.NotNull(provider.GetService<IAppIntegrityService>());
+        Assert.NotNull(provider.GetService<IPlusStore>());
+    }
+
     sealed class TestApplication : Application;
 }

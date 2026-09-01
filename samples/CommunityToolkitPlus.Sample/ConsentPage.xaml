@@ -4,11 +4,16 @@
              x:Class="CommunityToolkitPlus.Sample.ConsentPage"
              Title="Privacy Consent">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Purpose-based legal consent is not the same as OS permission prompts. This package does not guarantee GDPR or CCPA compliance." />
-        <Button Text="Accept analytics" Clicked="OnAcceptClicked" />
-        <Button Text="Deny analytics" Clicked="OnDenyClicked" />
-        <Button Text="Revoke analytics" Clicked="OnRevokeClicked" />
-        <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
-    </VerticalStackLayout>
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="12">
+            <Label Text="Purpose-based legal consent is not the same as OS permission prompts. This package does not guarantee GDPR or CCPA compliance. iOS ATT is requested only when NSUserTrackingUsageDescription is present." />
+            <Button Text="Accept analytics" Clicked="OnAcceptAnalyticsClicked" />
+            <Button Text="Deny analytics" Clicked="OnDenyAnalyticsClicked" />
+            <Button Text="Revoke analytics" Clicked="OnRevokeAnalyticsClicked" />
+            <Button Text="Accept personalization" Clicked="OnAcceptPersonalizationClicked" />
+            <Button Text="Present consent UI" Clicked="OnPresentClicked" />
+            <Button Text="Activate ready SDKs" Clicked="OnActivateClicked" />
+            <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

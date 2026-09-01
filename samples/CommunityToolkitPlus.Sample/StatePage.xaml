@@ -5,12 +5,13 @@
              Title="State Restoration">
 
     <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Transient workflow state. This is not OfflineSync." />
+        <Label Text="Transient workflow state. This is not OfflineSync. Startup also loads and applies the last checkpoint after Shell is ready." />
         <Editor x:Name="DraftEditor"
                 AutoSize="TextChanges"
                 Placeholder="Unfinished draft" />
         <Button Text="Checkpoint draft" Clicked="OnCheckpointClicked" />
         <Button Text="Restore draft" Clicked="OnRestoreClicked" />
-        <Label x:Name="OutputLabel" />
+        <Button Text="Clear checkpoint" Clicked="OnClearClicked" />
+        <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
     </VerticalStackLayout>
 </ContentPage>

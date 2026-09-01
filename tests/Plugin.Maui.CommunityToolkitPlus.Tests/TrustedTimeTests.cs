@@ -78,14 +78,68 @@ public sealed class TrustedTimeTests : IDisposable
         Assert.Equal(PlusErrorCodes.InvalidConfiguration, result.Code);
     }
 
+    [Fact]
+    public async Task Stale_Anchor_Degrades_After_Offline_Grace_Period()
+    {
+        var service = CreateService(TimeSpan.FromMinutes(5), new FixedTimeSource("a", _time.GetUtcNow()));
+        Assert.True((await service.SynchronizeAsync()).Succeeded);
+
+        var offline = CreateService(TimeSpan.FromMinutes(5));
+        _time.Advance(TimeSpan.FromMinutes(6));
+        var result = await offline.GetUtcNowAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(TrustedTimeConfidence.Degraded, result.Value!.Confidence);
+    }
+
+    [Fact]
+    public async Task All_Sources_Fail_Without_Anchor_Returns_TransientFailure()
+    {
+        var result = await CreateService(new FailingTimeSource()).SynchronizeAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(PlusErrorCodes.TransientFailure, result.Code);
+    }
+
+    [Fact]
+    public async Task Changed_Event_And_LastSnapshot_Are_Updated()
+    {
+        var service = CreateService(new FixedTimeSource("a", _time.GetUtcNow()));
+        TrustedTimeSnapshot? observed = null;
+        service.Changed += (_, args) => observed = args.Snapshot;
+
+        var result = await service.SynchronizeAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(observed);
+        Assert.Equal(result.Value, service.LastSnapshot);
+        Assert.Equal(result.Value!.SynchronizedAt, observed!.SynchronizedAt);
+    }
+
+    [Fact]
+    public async Task HttpDateTimeSource_Uses_Response_Date_Header()
+    {
+        var expected = new DateTimeOffset(2026, 8, 31, 15, 0, 0, TimeSpan.Zero);
+        var source = new HttpDateTimeSource(
+            new Uri("https://example.test/time"),
+            new DateHeaderHandler(expected));
+
+        var utc = await source.GetUtcAsync();
+
+        Assert.Equal(expected, utc);
+    }
+
     TrustedTimeService CreateService(params ITimeSource[] sources) =>
+        CreateService(TimeSpan.FromHours(24), sources);
+
+    TrustedTimeService CreateService(TimeSpan grace, params ITimeSource[] sources) =>
         new(
             sources,
             new TrustedTimeOptions
             {
                 Enabled = true,
                 MaxClockSkew = TimeSpan.FromMinutes(1),
-                OfflineGracePeriod = TimeSpan.FromHours(24)
+                OfflineGracePeriod = grace
             },
             _time,
             new AtomicVersionedStore(_directory, null, null),
@@ -106,5 +160,17 @@ public sealed class TrustedTimeTests : IDisposable
 
         public Task<DateTimeOffset?> GetUtcAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<DateTimeOffset?>(null);
+    }
+
+    sealed class DateHeaderHandler(DateTimeOffset date) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+            response.Headers.Date = date;
+            return Task.FromResult(response);
+        }
     }
 }

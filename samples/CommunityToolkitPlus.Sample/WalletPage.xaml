@@ -5,7 +5,7 @@
              Title="Wallet Passes">
 
     <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Certificates and Google Wallet objects stay on the backend. The sample uses fake save URLs." />
+        <Label Text="Certificates and Google Wallet objects stay on the backend. Android opens a fake Google Wallet save URL. iOS requires real .pkpass bytes; the sample supplies a dummy ZIP header so the adapter reports InvalidPayload instead of MissingPayload." />
         <Button Text="Add ticket" Clicked="OnAddPassClicked" CommandParameter="ticket" />
         <Button Text="Add loyalty card" Clicked="OnAddPassClicked" CommandParameter="loyalty" />
         <Button Text="Add coupon" Clicked="OnAddPassClicked" CommandParameter="coupon" />

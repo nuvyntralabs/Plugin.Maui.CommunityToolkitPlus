@@ -78,7 +78,45 @@ public sealed class UpgradeGuardTests : IDisposable
         Assert.Equal(UpgradeDecision.Continue, await guard.RunAsync());
     }
 
-    UpgradeGuardService CreateGuard(int threshold = 5) =>
+    [Fact]
+    public async Task Journal_Left_Running_Resumes_On_Next_Run()
+    {
+        var store = new AtomicVersionedStore(_directory, null, null);
+        await store.SaveAsync("upgrade-journal", new UpgradeJournalState
+        {
+            FromVersion = "1.0.0",
+            ToVersion = "2.0.0",
+            Migrations = [new UpgradeMigrationState { Id = "schema-2", Status = "Running" }]
+        });
+
+        var migration = new TrackingMigration();
+        var guard = CreateGuard();
+        guard.Register(migration);
+
+        var decision = await guard.RunAsync();
+
+        Assert.Equal(UpgradeDecision.Continue, decision);
+        Assert.Equal(1, migration.Runs);
+        Assert.Equal("Completed", (await guard.GetJournalAsync()).Migrations.Single().Status);
+    }
+
+    [Fact]
+    public async Task Backup_And_Rollback_Are_Invoked_On_Failure()
+    {
+        var backup = new TrackingBackup();
+        var guard = CreateGuard(backup: backup);
+        var migration = new TrackingMigration { ThrowOnce = true };
+        guard.Register(migration);
+
+        var decision = await guard.RunAsync();
+
+        Assert.Equal(UpgradeDecision.SafeMode, decision);
+        Assert.Equal(1, backup.Backups);
+        Assert.Equal(1, backup.Rollbacks);
+        Assert.Equal("Failed", (await guard.GetJournalAsync()).Migrations.Single().Status);
+    }
+
+    UpgradeGuardService CreateGuard(int threshold = 5, IUpgradeBackupProvider? backup = null) =>
         new(
             new AtomicVersionedStore(_directory, null, null),
             new UpgradeGuardOptions
@@ -87,7 +125,7 @@ public sealed class UpgradeGuardTests : IDisposable
                 CurrentVersion = "2.0.0",
                 SafeModeFailureThreshold = threshold
             },
-            backup: null,
+            backup,
             NullLogger<UpgradeGuardService>.Instance);
 
     sealed class TrackingMigration : IAppMigration
@@ -101,6 +139,24 @@ public sealed class UpgradeGuardTests : IDisposable
             Runs++;
             if (ThrowOnce)
                 throw new InvalidOperationException("interrupted");
+            return Task.CompletedTask;
+        }
+    }
+
+    sealed class TrackingBackup : IUpgradeBackupProvider
+    {
+        public int Backups { get; private set; }
+        public int Rollbacks { get; private set; }
+
+        public Task BackupAsync(UpgradeContext context, CancellationToken cancellationToken = default)
+        {
+            Backups++;
+            return Task.CompletedTask;
+        }
+
+        public Task RollbackAsync(UpgradeContext context, CancellationToken cancellationToken = default)
+        {
+            Rollbacks++;
             return Task.CompletedTask;
         }
     }

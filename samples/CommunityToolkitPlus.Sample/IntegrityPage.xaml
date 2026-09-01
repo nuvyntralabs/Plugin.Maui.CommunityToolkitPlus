@@ -6,7 +6,8 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="24" Spacing="12">
-            <Label Text="Proofs are opaque. Only a backend can verify them." />
+            <Label Text="Proofs are opaque. Only a backend can verify them. iOS App Attest needs the App Attest entitlement (see Platforms/iOS/Entitlements.plist) and a real device. Android Play Integrity needs a host IIntegrityPlatformAdapter." />
+            <Button Text="Show capability" Clicked="OnCapabilityClicked" />
             <Button Text="Create challenge and proof" Clicked="OnCreateProofClicked" />
             <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
         </VerticalStackLayout>

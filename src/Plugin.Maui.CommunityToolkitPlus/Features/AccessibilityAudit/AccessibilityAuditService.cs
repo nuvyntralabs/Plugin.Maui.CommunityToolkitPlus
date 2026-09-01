@@ -117,19 +117,27 @@ sealed class AccessibilityAuditService : IAccessibilityAuditService
 
     void EvaluateDuplicateAutomationIds(IReadOnlyList<Element> elements, List<AccessibilityFinding> findings)
     {
-        foreach (var group in elements
-            .Where(element => !string.IsNullOrWhiteSpace(element.AutomationId))
-            .GroupBy(element => element.AutomationId, StringComparer.Ordinal))
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var element in elements)
         {
-            if (group.Count() < 2)
+            if (string.IsNullOrWhiteSpace(element.AutomationId))
+                continue;
+
+            counts.TryGetValue(element.AutomationId, out var count);
+            counts[element.AutomationId] = count + 1;
+        }
+
+        foreach (var (automationId, count) in counts)
+        {
+            if (count < 2)
                 continue;
 
             findings.Add(new(
                 AccessibilityRule.DuplicateAutomationId,
                 AccessibilitySeverity.Error,
                 "fail",
-                group.Key!,
-                $"AutomationId '{group.Key}' is used {group.Count()} times."));
+                automationId,
+                $"AutomationId '{automationId}' is used {count} times."));
         }
     }
 

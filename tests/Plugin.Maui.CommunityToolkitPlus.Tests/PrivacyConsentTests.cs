@@ -79,6 +79,50 @@ public sealed class PrivacyConsentTests : IDisposable
         Assert.False(await consent.HasConsentAsync("analytics"));
     }
 
+    [Fact]
+    public async Task PresentAsync_Fails_Without_Popup_Service()
+    {
+        var consent = CreateService();
+        var result = await consent.PresentAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(PlusErrorCodes.InvalidConfiguration, result.Code);
+    }
+
+    [Fact]
+    public async Task MultiPurpose_Sdk_Gate_Requires_Every_Purpose()
+    {
+        var consent = CreateService();
+        var activated = 0;
+        consent.RegisterSdk("combo", ["analytics", "ads"], _ =>
+        {
+            activated++;
+            return Task.CompletedTask;
+        });
+
+        await consent.RecordAsync("analytics", ConsentDecision.Accepted);
+        Assert.Empty(await consent.ActivateReadySdksAsync());
+
+        await consent.RecordAsync("ads", ConsentDecision.Accepted);
+        var ready = await consent.ActivateReadySdksAsync();
+        var again = await consent.ActivateReadySdksAsync();
+
+        Assert.Equal(["combo"], ready);
+        Assert.Empty(again);
+        Assert.Equal(1, activated);
+    }
+
+    [Fact]
+    public async Task Denied_Receipt_Is_Stored_And_Is_Not_Consent()
+    {
+        var consent = CreateService();
+        await consent.RecordAsync("ads", ConsentDecision.Denied);
+
+        var receipt = await consent.GetAsync("ads");
+        Assert.Equal(ConsentDecision.Denied, receipt!.Decision);
+        Assert.False(await consent.HasConsentAsync("ads"));
+    }
+
     IPrivacyConsentService CreateService(string version = "1", TimeSpan? lifetime = null) =>
         new PrivacyConsentService(
             new AtomicVersionedStore(_directory, null, null),

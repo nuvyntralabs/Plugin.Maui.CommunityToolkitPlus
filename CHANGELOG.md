@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0
+
+- First stable release (no preview suffix)
+- Reuse one `HttpClient` per Trusted Time source
+- Cache the privacy-consent ledger and load it once during SDK activation
+- Partition atomic store locks per document
+- Complete the iOS Wallet add-pass controller lifecycle
+- Degrade or resynchronize stale trusted-time anchors
+- Sample covers every module API; unit tests cover DESIGN.md required cases
+
 ## 0.1.0-preview.2
 
 - Re-release with corrected NuGet package scope and metadata; no functional changes from preview.1

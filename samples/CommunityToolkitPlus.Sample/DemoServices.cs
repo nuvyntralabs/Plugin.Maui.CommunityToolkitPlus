@@ -20,17 +20,17 @@ sealed class DemoWalletPayloadProvider : IWalletPassPayloadProvider
             "ticket" => new WalletPassPayload(
                 passId,
                 "ticket",
-                PkPass: null,
+                PkPass: [0x50, 0x4B, 0x03, 0x04],
                 SaveUrl: new Uri("https://pay.google.com/gp/v/save/demo-ticket")),
             "loyalty" => new WalletPassPayload(
                 passId,
                 "loyalty",
-                PkPass: null,
+                PkPass: [0x50, 0x4B, 0x03, 0x04],
                 SaveUrl: new Uri("https://pay.google.com/gp/v/save/demo-loyalty")),
             "coupon" => new WalletPassPayload(
                 passId,
                 "coupon",
-                PkPass: null,
+                PkPass: [0x50, 0x4B, 0x03, 0x04],
                 SaveUrl: new Uri("https://pay.google.com/gp/v/save/demo-coupon")),
             _ => null
         };
@@ -42,9 +42,31 @@ sealed class DemoWalletPayloadProvider : IWalletPassPayloadProvider
 sealed class DemoMigration : IAppMigration
 {
     public string Id => "sample-1";
+    public string? LastContext { get; private set; }
 
-    public Task MigrateAsync(UpgradeContext context, CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
+    public Task MigrateAsync(UpgradeContext context, CancellationToken cancellationToken = default)
+    {
+        LastContext = $"{context.FromVersion ?? "(none)"} → {context.ToVersion}";
+        return Task.CompletedTask;
+    }
+}
+
+sealed class DemoBackupProvider : IUpgradeBackupProvider
+{
+    public int Backups { get; private set; }
+    public int Rollbacks { get; private set; }
+
+    public Task BackupAsync(UpgradeContext context, CancellationToken cancellationToken = default)
+    {
+        Backups++;
+        return Task.CompletedTask;
+    }
+
+    public Task RollbackAsync(UpgradeContext context, CancellationToken cancellationToken = default)
+    {
+        Rollbacks++;
+        return Task.CompletedTask;
+    }
 }
 
 sealed class DemoDraftContributor : IStateContributor
@@ -61,4 +83,26 @@ sealed class DemoDraftContributor : IStateContributor
         Text = payload.GetString() ?? "";
         return Task.CompletedTask;
     }
+}
+
+sealed class DemoDraftMigration : IStateMigration
+{
+    public string ContributorKey => "sample-draft";
+    public int FromVersion => 0;
+    public int ToVersion => 1;
+
+    public JsonElement Migrate(JsonElement payload) => payload;
+}
+
+static class DemoSdkGate
+{
+    public static bool AnalyticsReady { get; set; }
+    public static bool PersonalizationReady { get; set; }
+}
+
+static class DemoStartup
+{
+    public static UpgradeDecision? LastUpgradeDecision { get; set; }
+    public static string? RestoredRoute { get; set; }
+    public static string? LastError { get; set; }
 }

@@ -28,5 +28,7 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>The sample requests tracking authorization only to demonstrate the Privacy Consent ATT adapter. No advertising SDK is initialized.</string>
 </dict>
 </plist>

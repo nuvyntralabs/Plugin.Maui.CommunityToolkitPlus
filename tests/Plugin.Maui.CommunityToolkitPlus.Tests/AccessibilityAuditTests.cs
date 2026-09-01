@@ -136,4 +136,84 @@ public sealed class AccessibilityAuditTests
         Assert.Contains("missingSemanticLabel", json, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Audit_Reports_Text_Clipping_At_Font_Scale()
+    {
+        var label = new Label
+        {
+            Text = "A long truncated label",
+            LineBreakMode = LineBreakMode.TailTruncation
+        };
+        typeof(VisualElement).GetProperty(nameof(VisualElement.Width))!.SetValue(label, 80d);
+
+        var report = _audit.Audit(label);
+
+        Assert.Contains(report.Findings, finding =>
+            finding.Rule == AccessibilityRule.TextClippingAtFontScale && finding.Outcome == "fail");
+    }
+
+    [Fact]
+    public void Audit_Returns_NotEvaluated_When_Label_Has_No_Bounds()
+    {
+        var report = _audit.Audit(new Label { Text = "Hello" });
+
+        Assert.Contains(report.Findings, finding =>
+            finding.Rule == AccessibilityRule.TextClippingAtFontScale && finding.Outcome == "not_evaluated");
+    }
+
+    [Fact]
+    public void Audit_Reports_Input_Transparent_Interactive_Target()
+    {
+        var button = new Button { Text = "Skip", InputTransparent = true };
+
+        var report = _audit.Audit(button);
+
+        Assert.Contains(report.Findings, finding =>
+            finding.Rule == AccessibilityRule.SuspiciousFocusOrder &&
+            finding.Message.Contains("input-transparent", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Audit_Returns_NotEvaluated_When_Contrast_Colors_Are_Missing()
+    {
+        var report = _audit.Audit(new Label { Text = "Hello" });
+
+        Assert.Contains(report.Findings, finding =>
+            finding.Rule == AccessibilityRule.ContrastFailure && finding.Outcome == "not_evaluated");
+    }
+
+    [Fact]
+    public void ToSarif_Maps_Severity_And_Includes_Schema()
+    {
+        var report = new AccessibilityAuditReport(
+            DateTimeOffset.UtcNow,
+            [
+                new AccessibilityFinding(
+                    AccessibilityRule.MissingSemanticLabel,
+                    AccessibilitySeverity.Error,
+                    "fail",
+                    "Save",
+                    "Missing label"),
+                new AccessibilityFinding(
+                    AccessibilityRule.UndersizedTarget,
+                    AccessibilitySeverity.Warning,
+                    "fail",
+                    "Tiny",
+                    "Small target"),
+                new AccessibilityFinding(
+                    AccessibilityRule.ContrastFailure,
+                    AccessibilitySeverity.NotEvaluated,
+                    "not_evaluated",
+                    "Label",
+                    "No colors")
+            ]);
+
+        var sarif = _audit.ToSarif(report);
+
+        Assert.Contains("\"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\"", sarif);
+        Assert.Contains("\"level\":\"error\"", sarif);
+        Assert.Contains("\"level\":\"warning\"", sarif);
+        Assert.DoesNotContain("not_evaluated", sarif);
+    }
+
 }

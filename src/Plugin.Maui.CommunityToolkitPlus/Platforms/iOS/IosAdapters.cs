@@ -123,7 +123,6 @@ sealed class IosWalletAdapter : IWalletPlatformAdapter
                 "The supplied .pkpass payload is not a valid Apple Wallet pass."));
         }
 
-        var controller = new PKAddPassesViewController(pass);
         var presenter = GetPresenter();
         if (presenter is null)
         {
@@ -132,8 +131,39 @@ sealed class IosWalletAdapter : IWalletPlatformAdapter
                 "No iOS view controller is available to present Wallet."));
         }
 
+        var tcs = new TaskCompletionSource<WalletOperationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var controller = new PKAddPassesViewController(pass)
+        {
+            Delegate = new AddPassesCompletion(tcs)
+        };
+
+        CancellationTokenRegistration registration = default;
+        if (cancellationToken.CanBeCanceled)
+        {
+            registration = cancellationToken.Register(() =>
+            {
+                controller.DismissViewController(true, null);
+                tcs.TrySetCanceled(cancellationToken);
+            });
+        }
+
         presenter.PresentViewController(controller, true, null);
-        return Task.FromResult(WalletOperationResult.Ok());
+        return AwaitAddAsync(tcs.Task, registration);
+    }
+
+    static async Task<WalletOperationResult> AwaitAddAsync(
+        Task<WalletOperationResult> presented,
+        CancellationTokenRegistration registration)
+    {
+        try
+        {
+            return await presented.ConfigureAwait(false);
+        }
+        finally
+        {
+            await registration.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     static UIViewController? GetPresenter()
@@ -143,6 +173,16 @@ sealed class IosWalletAdapter : IWalletPlatformAdapter
             .SelectMany(scene => scene.Windows)
             .FirstOrDefault(item => item.IsKeyWindow);
         return window?.RootViewController;
+    }
+
+    sealed class AddPassesCompletion(TaskCompletionSource<WalletOperationResult> completed)
+        : PKAddPassesViewControllerDelegate
+    {
+        public override void Finished(PKAddPassesViewController controller)
+        {
+            controller.DismissViewController(true, () =>
+                completed.TrySetResult(WalletOperationResult.Ok()));
+        }
     }
 }
 

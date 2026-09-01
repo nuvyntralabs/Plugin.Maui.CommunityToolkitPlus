@@ -5,8 +5,10 @@
              Title="Trusted Time">
 
     <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Request trusted time explicitly. This does not replace DateTime.UtcNow." />
+        <Label Text="Request trusted time explicitly. This does not replace DateTime.UtcNow. The sample uses a local source plus https://www.google.com for HTTP Date." />
         <Button Text="Get trusted UTC" Clicked="OnGetUtcClicked" />
+        <Button Text="Synchronize sources" Clicked="OnSynchronizeClicked" />
+        <Button Text="Show last snapshot" Clicked="OnLastSnapshotClicked" />
         <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
     </VerticalStackLayout>
 </ContentPage>

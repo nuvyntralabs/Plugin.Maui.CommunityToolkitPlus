@@ -59,6 +59,51 @@ public sealed class StateRestorationTests : IDisposable
         Assert.Equal("migrated:v1", contributor.Value);
     }
 
+    [Fact]
+    public async Task MultiHop_Migration_Chain_Is_Applied_On_Load()
+    {
+        var first = CreateService();
+        first.Register(new VersionedContributor { SchemaVersion = 1, Value = "v1" });
+        await first.CheckpointAsync();
+
+        var second = CreateService();
+        var contributor = new VersionedContributor { SchemaVersion = 3 };
+        second.Register(contributor);
+        second.Register(new PrefixMigration());
+        second.Register(new SecondHopMigration());
+
+        var context = await second.LoadAsync();
+        Assert.NotNull(context);
+        await second.ApplyAsync(context);
+        Assert.Equal("v3:migrated:v1", contributor.Value);
+    }
+
+    [Fact]
+    public async Task Expired_Checkpoint_Deletes_Persisted_File()
+    {
+        var service = CreateService();
+        service.Register(new MemoryContributor { Value = "old" });
+        await service.CheckpointAsync();
+        Assert.True(File.Exists(Path.Combine(_directory, "state-restoration.json")));
+
+        _time.Advance(TimeSpan.FromDays(8));
+        Assert.Null(await service.LoadAsync());
+        Assert.False(File.Exists(Path.Combine(_directory, "state-restoration.json")));
+    }
+
+    [Fact]
+    public async Task ClearAsync_Removes_Checkpoint()
+    {
+        var service = CreateService();
+        service.Register(new MemoryContributor { Value = "draft" });
+        await service.CheckpointAsync("///checkout");
+
+        await service.ClearAsync();
+
+        Assert.Null(await service.LoadAsync());
+        Assert.False(File.Exists(Path.Combine(_directory, "state-restoration.json")));
+    }
+
     IStateRestorationService CreateService() =>
         new StateRestorationService(
             new AtomicVersionedStore(_directory, null, null),
@@ -106,5 +151,15 @@ public sealed class StateRestorationTests : IDisposable
 
         public JsonElement Migrate(JsonElement payload) =>
             JsonSerializer.SerializeToElement("migrated:" + payload.GetString());
+    }
+
+    sealed class SecondHopMigration : IStateMigration
+    {
+        public string ContributorKey => "draft";
+        public int FromVersion => 2;
+        public int ToVersion => 3;
+
+        public JsonElement Migrate(JsonElement payload) =>
+            JsonSerializer.SerializeToElement("v3:" + payload.GetString());
     }
 }

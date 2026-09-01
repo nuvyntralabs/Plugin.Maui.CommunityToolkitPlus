@@ -53,6 +53,59 @@ public sealed class AppIntegrityTests
         Assert.Equal(IntegrityErrorCodes.KeyLost, result.Code);
     }
 
+    [Fact]
+    public async Task Key_Is_Created_Persisted_And_Reused()
+    {
+        var directory = TestHarness.CreateTempDirectory();
+        try
+        {
+            var store = new AtomicVersionedStore(directory, null, null);
+            var adapter = new StoreBackedIntegrityAdapter(store);
+            var service = CreateService(adapter);
+
+            var first = await service.CreateProofAsync(await service.CreateChallengeAsync());
+            var second = await service.CreateProofAsync(await service.CreateChallengeAsync());
+
+            Assert.True(first.Succeeded);
+            Assert.True(second.Succeeded);
+            Assert.Equal("created-key", first.Proof!.KeyId);
+            Assert.Equal(first.Proof.KeyId, second.Proof!.KeyId);
+            Assert.Equal(1, adapter.Creations);
+
+            await store.DeleteAsync("app-integrity-key");
+            var regenerated = await service.CreateProofAsync(await service.CreateChallengeAsync());
+            Assert.True(regenerated.Succeeded);
+            Assert.Equal(2, adapter.Creations);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task IntegrityDelegatingHandler_Adds_Header_When_Protected()
+    {
+        var service = CreateService(new FakeIntegrityAdapter());
+        var inner = new CaptureHandler();
+        var handler = new IntegrityDelegatingHandler(
+            service,
+            request => request.RequestUri!.AbsolutePath.Contains("secure", StringComparison.Ordinal),
+            time: _time)
+        {
+            InnerHandler = inner
+        };
+        using var client = new HttpClient(handler);
+
+        await client.GetAsync("https://example.test/secure");
+        await client.GetAsync("https://example.test/public");
+
+        Assert.Equal(2, inner.Requests.Count);
+        Assert.True(inner.Requests[0].Headers.Contains("X-App-Integrity"));
+        Assert.False(inner.Requests[1].Headers.Contains("X-App-Integrity"));
+    }
+
     IAppIntegrityService CreateService(IIntegrityPlatformAdapter adapter) =>
         new AppIntegrityService(
             new MemoryIntegrityChallengeProvider(_time),
@@ -79,6 +132,42 @@ public sealed class AppIntegrityTests
 
             return Task.FromResult(IntegrityOperationResult.Ok(
                 new IntegrityProof(challenge.Id, "test", "opaque-proof", "key-1")));
+        }
+    }
+
+    sealed class StoreBackedIntegrityAdapter(IPlusStore store) : IIntegrityPlatformAdapter
+    {
+        public int Creations { get; private set; }
+
+        public IntegrityCapability GetCapability() => new(true, true, true, "test");
+
+        public async Task<IntegrityOperationResult> CreateProofAsync(
+            IntegrityChallenge challenge,
+            CancellationToken cancellationToken = default)
+        {
+            var record = await store.LoadAsync<IntegrityKeyRecord>("app-integrity-key", cancellationToken);
+            if (record?.KeyId is null)
+            {
+                Creations++;
+                record = new IntegrityKeyRecord { KeyId = "created-key", Platform = "test" };
+                await store.SaveAsync("app-integrity-key", record, cancellationToken);
+            }
+
+            return IntegrityOperationResult.Ok(
+                new IntegrityProof(challenge.Id, "test", "opaque-proof", record.KeyId));
+        }
+    }
+
+    sealed class CaptureHandler : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
         }
     }
 }

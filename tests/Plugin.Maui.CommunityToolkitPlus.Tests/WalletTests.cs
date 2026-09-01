@@ -44,6 +44,57 @@ public sealed class WalletTests
         Assert.Same(payload, adapter.LastPayload);
     }
 
+    [Fact]
+    public void Android_Capability_Mapping_Allows_Add_Only()
+    {
+        var capability = new WalletPassService(
+            new MissingWalletPayloadProvider(),
+            new MappedWalletAdapter(new WalletCapability(true, false, false, false, "android")))
+            .GetCapability();
+
+        Assert.Equal("android", capability.Platform);
+        Assert.True(capability.CanAdd);
+        Assert.False(capability.CanList);
+        Assert.False(capability.CanUpdate);
+        Assert.False(capability.CanRemove);
+    }
+
+    [Fact]
+    public void Ios_Capability_Mapping_Allows_Add_And_List()
+    {
+        var capability = new WalletPassService(
+            new MissingWalletPayloadProvider(),
+            new MappedWalletAdapter(new WalletCapability(true, true, false, false, "ios")))
+            .GetCapability();
+
+        Assert.Equal("ios", capability.Platform);
+        Assert.True(capability.CanAdd);
+        Assert.True(capability.CanList);
+        Assert.False(capability.CanUpdate);
+        Assert.False(capability.CanRemove);
+    }
+
+    [Fact]
+    public async Task Invalid_Payload_And_Cancelled_Use_Stable_Codes()
+    {
+        var invalid = await new WalletPassService(
+            new FixedPayloadProvider(new WalletPassPayload("x", "ticket", null, null)),
+            new MappedWalletAdapter(new WalletCapability(true, false, false, false, "android"), WalletErrorCodes.InvalidPayload))
+            .AddAsync("x");
+        var cancelled = await new WalletPassService(
+            new FixedPayloadProvider(new WalletPassPayload("x", "ticket", null, new Uri("https://example.test"))),
+            new MappedWalletAdapter(new WalletCapability(true, false, false, false, "android"), WalletErrorCodes.Cancelled))
+            .AddAsync("x");
+        var unsupported = await new WalletPassService(
+            new FixedPayloadProvider(new WalletPassPayload("x", "ticket", null, null)),
+            new UnsupportedWalletAdapter())
+            .AddAsync("x");
+
+        Assert.Equal(WalletErrorCodes.InvalidPayload, invalid.Code);
+        Assert.Equal(WalletErrorCodes.Cancelled, cancelled.Code);
+        Assert.Equal(WalletErrorCodes.Unsupported, unsupported.Code);
+    }
+
     sealed class FixedPayloadProvider(WalletPassPayload payload) : IWalletPassPayloadProvider
     {
         public Task<WalletPassPayload?> GetPayloadAsync(
@@ -65,5 +116,17 @@ public sealed class WalletTests
             LastPayload = payload;
             return Task.FromResult(WalletOperationResult.Ok());
         }
+    }
+
+    sealed class MappedWalletAdapter(WalletCapability capability, string? failCode = null) : IWalletPlatformAdapter
+    {
+        public WalletCapability GetCapability() => capability;
+
+        public Task<WalletOperationResult> AddAsync(
+            WalletPassPayload payload,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(failCode is null
+                ? WalletOperationResult.Ok()
+                : WalletOperationResult.Fail(failCode, failCode));
     }
 }

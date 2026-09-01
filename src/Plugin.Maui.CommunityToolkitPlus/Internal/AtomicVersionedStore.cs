@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Plugin.Maui.CommunityToolkitPlus;
 
 sealed class AtomicVersionedStore : IPlusStore
@@ -5,7 +7,7 @@ sealed class AtomicVersionedStore : IPlusStore
     readonly string _directory;
     readonly IPlusDataProtector? _protector;
     readonly ILogger _logger;
-    readonly SemaphoreSlim _gate = new(1, 1);
+    readonly ConcurrentDictionary<string, SemaphoreSlim> _gates = new(StringComparer.Ordinal);
 
     public AtomicVersionedStore(
         string directory,
@@ -22,7 +24,7 @@ sealed class AtomicVersionedStore : IPlusStore
     public async Task<T?> LoadAsync<T>(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var gate = await EnterAsync(name, cancellationToken).ConfigureAwait(false);
         try
         {
             var path = GetPath(name);
@@ -41,7 +43,7 @@ sealed class AtomicVersionedStore : IPlusStore
         }
         finally
         {
-            _gate.Release();
+            gate.Release();
         }
     }
 
@@ -49,7 +51,7 @@ sealed class AtomicVersionedStore : IPlusStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(value);
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var gate = await EnterAsync(name, cancellationToken).ConfigureAwait(false);
         try
         {
             Directory.CreateDirectory(_directory);
@@ -64,8 +66,7 @@ sealed class AtomicVersionedStore : IPlusStore
                 DataVersion = 1,
                 Payload = payload
             };
-            var json = JsonSerializer.Serialize(document, PlusJsonContext.Default.StoredDocument);
-            var bytes = Encoding.UTF8.GetBytes(json);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(document, PlusJsonContext.Default.StoredDocument);
             if (_protector is not null)
                 bytes = _protector.Protect(bytes);
 
@@ -74,19 +75,18 @@ sealed class AtomicVersionedStore : IPlusStore
             if (File.Exists(path))
                 File.Copy(path, backup, overwrite: true);
 
-            File.Copy(temp, path, overwrite: true);
-            File.Delete(temp);
+            File.Move(temp, path, overwrite: true);
         }
         finally
         {
-            _gate.Release();
+            gate.Release();
         }
     }
 
     public async Task DeleteAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var gate = await EnterAsync(name, cancellationToken).ConfigureAwait(false);
         try
         {
             var path = GetPath(name);
@@ -98,7 +98,7 @@ sealed class AtomicVersionedStore : IPlusStore
         }
         finally
         {
-            _gate.Release();
+            gate.Release();
         }
     }
 
@@ -114,8 +114,7 @@ sealed class AtomicVersionedStore : IPlusStore
             if (_protector is not null)
                 bytes = _protector.Unprotect(bytes);
 
-            var json = Encoding.UTF8.GetString(bytes);
-            var document = JsonSerializer.Deserialize(json, PlusJsonContext.Default.StoredDocument);
+            var document = JsonSerializer.Deserialize(bytes, PlusJsonContext.Default.StoredDocument);
             if (document is null)
                 return false;
 
@@ -127,6 +126,18 @@ sealed class AtomicVersionedStore : IPlusStore
             _logger.LogWarning(ex, "Ignored a corrupt CommunityToolkitPlus store file.");
             return false;
         }
+    }
+
+    Task<SemaphoreSlim> EnterAsync(string name, CancellationToken cancellationToken)
+    {
+        var gate = _gates.GetOrAdd(name, static _ => new SemaphoreSlim(1, 1));
+        return WaitAsync(gate, cancellationToken);
+    }
+
+    static async Task<SemaphoreSlim> WaitAsync(SemaphoreSlim gate, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return gate;
     }
 
     string GetPath(string name) => Path.Combine(_directory, name + ".json");

@@ -47,10 +47,21 @@ sealed class TrustedTimeService : ITrustedTimeService
                 return await SynchronizeCoreAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            var snapshot = CreateSnapshot(_anchor, TrustedTimeConfidence.High);
-            if (_time.GetUtcNow() - _anchor.UtcAnchor > _options.OfflineGracePeriod && _sources.Count == 0)
-                snapshot = snapshot with { Confidence = TrustedTimeConfidence.Degraded };
+            if (HasExpired(_anchor))
+            {
+                if (_sources.Count > 0)
+                {
+                    var sync = await SynchronizeCoreAsync(cancellationToken).ConfigureAwait(false);
+                    if (sync.Succeeded)
+                        return sync;
+                }
 
+                var degraded = CreateSnapshot(_anchor, TrustedTimeConfidence.Degraded);
+                Publish(degraded);
+                return PlusResult<TrustedTimeSnapshot>.Ok(degraded);
+            }
+
+            var snapshot = CreateSnapshot(_anchor, TrustedTimeConfidence.High);
             Publish(snapshot);
             return PlusResult<TrustedTimeSnapshot>.Ok(snapshot);
         }
@@ -192,13 +203,18 @@ sealed class TrustedTimeService : ITrustedTimeService
 
 sealed class HttpDateTimeSource : ITimeSource
 {
+    const int MaxJsonBytes = 8192;
+    static readonly string[] JsonDateProperties = ["utc", "utcNow", "timestamp", "date"];
+
     readonly Uri _uri;
-    readonly HttpMessageHandler? _handler;
+    readonly HttpClient _client;
 
     public HttpDateTimeSource(Uri uri, HttpMessageHandler? handler)
     {
         _uri = uri;
-        _handler = handler;
+        _client = handler is null
+            ? new HttpClient { Timeout = TimeSpan.FromSeconds(15) }
+            : new HttpClient(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(15) };
         Name = uri.Host;
     }
 
@@ -206,28 +222,40 @@ sealed class HttpDateTimeSource : ITimeSource
 
     public async Task<DateTimeOffset?> GetUtcAsync(CancellationToken cancellationToken = default)
     {
-        using var client = _handler is null ? new HttpClient() : new HttpClient(_handler, disposeHandler: false);
         using var request = new HttpRequestMessage(HttpMethod.Head, _uri);
-        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await _client.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.Headers.Date is DateTimeOffset date)
             return date.ToUniversalTime();
 
-        using var get = await client.GetAsync(_uri, cancellationToken).ConfigureAwait(false);
+        using var get = await _client.GetAsync(_uri, cancellationToken).ConfigureAwait(false);
         if (get.Headers.Date is DateTimeOffset fallback)
             return fallback.ToUniversalTime();
 
-        var text = await get.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(text) ? "{}" : text);
-        if (document.RootElement.ValueKind == JsonValueKind.Object)
+        await using var stream = await get.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var buffer = new byte[MaxJsonBytes];
+        var read = 0;
+        while (read < buffer.Length)
         {
-            foreach (var name in new[] { "utc", "utcNow", "timestamp", "date" })
+            var n = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken).ConfigureAwait(false);
+            if (n == 0)
+                break;
+            read += n;
+        }
+
+        if (read == 0)
+            return null;
+
+        using var document = JsonDocument.Parse(buffer.AsMemory(0, read));
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            return null;
+
+        foreach (var name in JsonDateProperties)
+        {
+            if (document.RootElement.TryGetProperty(name, out var property) &&
+                DateTimeOffset.TryParse(property.GetString(), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal, out var parsed))
             {
-                if (document.RootElement.TryGetProperty(name, out var property) &&
-                    DateTimeOffset.TryParse(property.GetString(), CultureInfo.InvariantCulture,
-                        DateTimeStyles.AssumeUniversal, out var parsed))
-                {
-                    return parsed.ToUniversalTime();
-                }
+                return parsed.ToUniversalTime();
             }
         }
 

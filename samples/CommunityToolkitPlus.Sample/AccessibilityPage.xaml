@@ -6,11 +6,24 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="24" Spacing="12">
-            <Label Text="This page includes an unlabeled button so the scan has something to report. Findings assist testing and are not a WCAG certification." />
+            <Label Text="This page includes fixtures for every audit rule. Findings assist testing and are not a WCAG certification." />
             <Button AutomationId="unlabeled" />
+            <Button Text="Dup A" AutomationId="dup" />
+            <Button Text="Dup B" AutomationId="dup" />
+            <Button Text="Tiny" HeightRequest="20" WidthRequest="20" />
+            <Button Text="Hidden" IsVisible="False" />
+            <Button x:Name="TransparentButton" Text="Input transparent" />
+            <Image x:Name="HeroImage" AutomationId="hero" HeightRequest="40" WidthRequest="40" />
+            <Label Text="Low contrast"
+                   TextColor="White"
+                   BackgroundColor="#F0F0F0" />
+            <Label Text="This long label is truncated and may clip at the configured accessibility font scale."
+                   LineBreakMode="TailTruncation" />
             <Button Text="Scan this page"
                     AutomationId="scan"
                     Clicked="OnScanClicked" />
+            <Button Text="Export JSON" Clicked="OnExportJsonClicked" />
+            <Button Text="Export SARIF" Clicked="OnExportSarifClicked" />
             <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
         </VerticalStackLayout>
     </ScrollView>

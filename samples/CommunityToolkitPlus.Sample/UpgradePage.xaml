@@ -5,8 +5,9 @@
              Title="Upgrade Guard">
 
     <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Await this gate during startup. AppUpdate installs a binary; Upgrade Guard protects local data after that." />
+        <Label Text="The startup gate is awaited from App.CreateWindow. SafeMode means migrations failed or startup crashed too many times. AppUpdate installs a binary; Upgrade Guard protects local data after that." />
         <Button Text="Run startup gate" Clicked="OnRunClicked" />
+        <Button Text="Show journal and health" Clicked="OnJournalClicked" />
         <Label x:Name="OutputLabel" LineBreakMode="WordWrap" />
     </VerticalStackLayout>
 </ContentPage>

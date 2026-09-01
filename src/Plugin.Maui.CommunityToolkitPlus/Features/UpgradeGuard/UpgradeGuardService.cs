@@ -58,28 +58,29 @@ sealed class UpgradeGuardService : IUpgradeGuard, IStartupHealthTracker
         {
             journal.FromVersion = journal.ToVersion;
             journal.ToVersion = _options.CurrentVersion;
-            foreach (var migration in migrations)
-            {
-                if (!journal.Migrations.Any(entry => entry.Id == migration.Id))
-                    journal.Migrations.Add(new UpgradeMigrationState { Id = migration.Id, Status = "Pending" });
-            }
         }
-        else
+
+        var byId = new Dictionary<string, UpgradeMigrationState>(StringComparer.Ordinal);
+        foreach (var entry in journal.Migrations)
+            byId[entry.Id] = entry;
+
+        foreach (var migration in migrations)
         {
-            foreach (var migration in migrations)
-            {
-                if (!journal.Migrations.Any(entry => entry.Id == migration.Id))
-                    journal.Migrations.Add(new UpgradeMigrationState { Id = migration.Id, Status = "Pending" });
-            }
+            if (byId.ContainsKey(migration.Id))
+                continue;
+
+            var pending = new UpgradeMigrationState { Id = migration.Id, Status = "Pending" };
+            journal.Migrations.Add(pending);
+            byId[migration.Id] = pending;
         }
 
         var context = new UpgradeContext(journal.FromVersion, journal.ToVersion);
-        if (_backup is not null && journal.Migrations.Any(entry => entry.Status is "Pending" or "Failed"))
+        if (_backup is not null && journal.Migrations.Exists(entry => entry.Status is "Pending" or "Failed"))
             await _backup.BackupAsync(context, cancellationToken).ConfigureAwait(false);
 
         foreach (var migration in migrations)
         {
-            var entry = journal.Migrations.First(item => item.Id == migration.Id);
+            var entry = byId[migration.Id];
             if (entry.Status == "Completed")
                 continue;
 

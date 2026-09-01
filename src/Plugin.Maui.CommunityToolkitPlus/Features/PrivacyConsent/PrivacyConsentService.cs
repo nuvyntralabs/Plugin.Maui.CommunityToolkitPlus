@@ -13,6 +13,7 @@ sealed class PrivacyConsentService : IPrivacyConsentService
     readonly List<SdkGate> _gates = [];
     readonly HashSet<string> _activated = new(StringComparer.Ordinal);
     readonly object _gate = new();
+    ConsentLedger? _ledger;
 
     public PrivacyConsentService(
         IPlusStore store,
@@ -51,6 +52,7 @@ sealed class PrivacyConsentService : IPrivacyConsentService
         ledger.PolicyVersion = Policy.Version;
         ledger.Receipts.RemoveAll(existing => existing.PurposeId == purposeId);
         ledger.Receipts.Add(ToRecord(receipt));
+        _ledger = ledger;
         await _store.SaveAsync(StoreName, ledger, cancellationToken).ConfigureAwait(false);
         return receipt;
     }
@@ -60,7 +62,7 @@ sealed class PrivacyConsentService : IPrivacyConsentService
         CancellationToken cancellationToken = default)
     {
         var ledger = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var record = ledger.Receipts.LastOrDefault(item => item.PurposeId == purposeId);
+        var record = FindReceipt(ledger, purposeId);
         return record is null ? null : ToReceipt(record);
     }
 
@@ -68,14 +70,8 @@ sealed class PrivacyConsentService : IPrivacyConsentService
         string purposeId,
         CancellationToken cancellationToken = default)
     {
-        var receipt = await GetAsync(purposeId, cancellationToken).ConfigureAwait(false);
-        if (receipt is null)
-            return false;
-        if (!string.Equals(receipt.PolicyVersion, Policy.Version, StringComparison.Ordinal))
-            return false;
-        if (receipt.Decision != ConsentDecision.Accepted)
-            return false;
-        return receipt.ExpiresAt is null || receipt.ExpiresAt > _time.GetUtcNow();
+        var ledger = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        return HasConsent(ledger, purposeId);
     }
 
     public void RegisterSdk(
@@ -100,6 +96,7 @@ sealed class PrivacyConsentService : IPrivacyConsentService
         lock (_gate)
             gates = _gates.ToArray();
 
+        var ledger = await LoadAsync(cancellationToken).ConfigureAwait(false);
         var activated = new List<string>();
         foreach (var gate in gates)
         {
@@ -109,7 +106,7 @@ sealed class PrivacyConsentService : IPrivacyConsentService
             var ready = true;
             foreach (var purpose in gate.RequiredPurposes)
             {
-                if (!await HasConsentAsync(purpose, cancellationToken).ConfigureAwait(false))
+                if (!HasConsent(ledger, purpose))
                 {
                     ready = false;
                     break;
@@ -152,19 +149,51 @@ sealed class PrivacyConsentService : IPrivacyConsentService
 
     async Task<ConsentLedger> LoadAsync(CancellationToken cancellationToken)
     {
+        if (_ledger is not null)
+            return ApplyPolicyVersion(_ledger);
+
         var ledger = await _store.LoadAsync<ConsentLedger>(StoreName, cancellationToken).ConfigureAwait(false)
             ?? new ConsentLedger { PolicyVersion = Policy.Version };
 
-        if (!string.Equals(ledger.PolicyVersion, Policy.Version, StringComparison.Ordinal))
+        _ledger = ApplyPolicyVersion(ledger);
+        return _ledger;
+    }
+
+    ConsentLedger ApplyPolicyVersion(ConsentLedger ledger)
+    {
+        if (string.Equals(ledger.PolicyVersion, Policy.Version, StringComparison.Ordinal))
+            return ledger;
+
+        _logger.LogInformation(
+            "Consent policy changed from {Previous} to {Current}. Previous receipts require renewal.",
+            ledger.PolicyVersion,
+            Policy.Version);
+        ledger.PolicyVersion = Policy.Version;
+        return ledger;
+    }
+
+    bool HasConsent(ConsentLedger ledger, string purposeId)
+    {
+        var record = FindReceipt(ledger, purposeId);
+        if (record is null)
+            return false;
+        if (!string.Equals(record.PolicyVersion, Policy.Version, StringComparison.Ordinal))
+            return false;
+        if (!Enum.TryParse<ConsentDecision>(record.Decision, out var decision) ||
+            decision != ConsentDecision.Accepted)
+            return false;
+        return record.ExpiresAt is null || record.ExpiresAt > _time.GetUtcNow();
+    }
+
+    static ConsentReceiptRecord? FindReceipt(ConsentLedger ledger, string purposeId)
+    {
+        for (var i = ledger.Receipts.Count - 1; i >= 0; i--)
         {
-            _logger.LogInformation(
-                "Consent policy changed from {Previous} to {Current}. Previous receipts require renewal.",
-                ledger.PolicyVersion,
-                Policy.Version);
-            ledger.PolicyVersion = Policy.Version;
+            if (string.Equals(ledger.Receipts[i].PurposeId, purposeId, StringComparison.Ordinal))
+                return ledger.Receipts[i];
         }
 
-        return ledger;
+        return null;
     }
 
     static ConsentReceiptRecord ToRecord(ConsentReceipt receipt) => new()
