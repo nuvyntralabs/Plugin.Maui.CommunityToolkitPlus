@@ -119,8 +119,8 @@ public static class MauiAppBuilderExtensions
             foreach (var source in options.TrustedTime.Sources)
             {
                 var uri = source;
-                builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ITimeSource>(
-                    _ => new HttpDateTimeSource(uri, options.HttpMessageHandler)));
+                builder.Services.AddSingleton<ITimeSource>(
+                    _ => new HttpDateTimeSource(uri, options.HttpMessageHandler));
             }
 
             builder.Services.TryAddSingleton<ITrustedTimeService>(services =>

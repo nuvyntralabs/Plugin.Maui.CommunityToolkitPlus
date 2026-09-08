@@ -38,6 +38,33 @@ public sealed class ModuleRegistrationTests : IDisposable
     }
 
     [Fact]
+    public void Trusted_Time_Http_Sources_Register_Alongside_Host_Time_Source()
+    {
+        var builder = TestHarness.CreatePlusBuilder(options =>
+        {
+            options.TrustedTime.Enabled = true;
+            options.TrustedTime.Sources.Add(new Uri("https://www.example.com"));
+            options.TrustedTime.Sources.Add(new Uri("https://www.google.com"));
+        });
+        builder.Services.AddSingleton<ITimeSource, HostClockSource>();
+
+        using var provider = builder.Services.BuildServiceProvider();
+        var sources = provider.GetServices<ITimeSource>().ToList();
+
+        Assert.Contains(sources, source => source is HostClockSource);
+        Assert.Equal(3, sources.Count);
+        Assert.NotNull(provider.GetService<ITrustedTimeService>());
+    }
+
+    sealed class HostClockSource : ITimeSource
+    {
+        public string Name => "host-clock";
+
+        public Task<DateTimeOffset?> GetUtcAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<DateTimeOffset?>(DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
     public void Persistence_Modules_Share_One_Store()
     {
         using var provider = TestHarness

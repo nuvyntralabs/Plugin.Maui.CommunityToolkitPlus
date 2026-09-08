@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Register HTTP trusted-time sources with `AddSingleton` so a host `ITimeSource` and multiple HTTP URLs can coexist (sample no longer crashes at startup).
+
 ## 1.0.0
 
 - First stable release (no preview suffix)

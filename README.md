@@ -256,7 +256,7 @@ dotnet pack src/Plugin.Maui.CommunityToolkitPlus/Plugin.Maui.CommunityToolkitPlu
 ```
 
 The `.nupkg` is written to
-`artifacts/Plugin.Maui.CommunityToolkitPlus.1.0.0.nupkg`.
+`artifacts/Plugin.Maui.CommunityToolkitPlus.1.0.1.nupkg`.
 
 ## License
 
