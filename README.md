@@ -231,7 +231,12 @@ custom integrity adapter need it:
 ```
 
 **iOS** — App Attest requires the App Attest entitlement and a real device for
-full verification. Add `NSUserTrackingUsageDescription` only when you use ATT.
+full verification. Add this only when you use ATT:
+
+```xml
+<key>NSUserTrackingUsageDescription</key>
+<string>This identifier will be used to deliver personalized ads to you.</string>
+```
 
 `net10.0` without an OS TFM is the shared / test surface. Native wallet and
 integrity operations return structured `unsupported` results.
@@ -256,7 +261,7 @@ dotnet pack src/Plugin.Maui.CommunityToolkitPlus/Plugin.Maui.CommunityToolkitPlu
 ```
 
 The `.nupkg` is written to
-`artifacts/Plugin.Maui.CommunityToolkitPlus.1.0.1.nupkg`.
+`artifacts/Plugin.Maui.CommunityToolkitPlus.1.0.2.nupkg`.
 
 ## License
 

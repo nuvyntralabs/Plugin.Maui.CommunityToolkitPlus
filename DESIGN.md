@@ -481,8 +481,6 @@ Use:
 - NuGet: `https://www.nuget.org/packages/Plugin.Maui.CommunityToolkitPlus`
 - Documentation:
   `https://nuvyntralabs.github.io/packages/plugin-maui-community-toolkit-plus/`
-- White paper:
-  `https://niladripadhy.vercel.app/opensource/plugin-maui-community-toolkit-plus`
 
 Describe the package as “opt-in production extensions built on
 CommunityToolkit.Maui.” Record that it is the second intentional umbrella

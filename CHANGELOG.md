@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Document Android and iOS host permissions required for the plugin to work.
+
 ## 1.0.1
 
 - Register HTTP trusted-time sources with `AddSingleton` so a host `ITimeSource` and multiple HTTP URLs can coexist (sample no longer crashes at startup).
